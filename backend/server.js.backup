@@ -1,0 +1,121 @@
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const app = express();
+const PORT = 5000;
+
+app.use(cors());
+app.use(express.json());
+
+// ========== IMPORTANT ==========
+// Replace "YOUR_ACTUAL_KEY" below with your actual Gemini API key from Google AI Studio
+// Get it free at https://aistudio.google.com/
+const genAI = new GoogleGenerativeAI("YOUR_ACTUAL_KEY");
+// ===============================
+
+// Get user profile
+app.get('/api/github/user/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const response = await axios.get(`https://api.github.com/users/${username}`);
+    const userData = {
+      login: response.data.login,
+      name: response.data.name || response.data.login,
+      avatar_url: response.data.avatar_url,
+      public_repos: response.data.public_repos,
+      followers: response.data.followers,
+      following: response.data.following,
+      bio: response.data.bio,
+    };
+    res.json(userData);
+  } catch (error) {
+    if (error.response?.status === 404) res.status(404).json({ error: 'User not found' });
+    else res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get top languages
+app.get('/api/github/languages/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const reposRes = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100`);
+    const langMap = new Map();
+    for (const repo of reposRes.data) {
+      if (repo.language) langMap.set(repo.language, (langMap.get(repo.language) || 0) + 1);
+    }
+    const languages = Array.from(langMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a,b) => b.count - a.count)
+      .slice(0,6);
+    res.json(languages);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch languages' });
+  }
+});
+
+// Get user contribution activity (heatmap)
+app.get('/api/github/contributions/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`);
+    const events = eventsRes.data;
+    const contributions = new Map();
+    events.forEach(event => {
+      if (event.type === "PushEvent") {
+        const date = event.created_at.split("T")[0];
+        contributions.set(date, (contributions.get(date) || 0) + (event.payload.commits?.length || 0));
+      }
+    });
+    const heatmapData = Array.from(contributions.entries()).map(([date, count]) => ({ date, count }));
+    res.json(heatmapData);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+// ========== NEW: AI ANALYSIS ENDPOINT ==========
+app.get('/api/github/analyze/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    // Fetch user data and repos
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`);
+    const userData = userResponse.data;
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`);
+    const repos = reposResponse.data;
+
+    // Prepare language stats
+    const repoLanguages = repos.map(repo => repo.language).filter(lang => lang);
+    const languageCounts = repoLanguages.reduce((acc, lang) => {
+      acc[lang] = (acc[lang] || 0) + 1;
+      return acc;
+    }, {});
+    const topLanguages = Object.entries(languageCounts)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([lang, count]) => `${lang} (${count} repos)`);
+
+    const prompt = `You are an expert developer analyzing a GitHub profile. Based on the following data, write a concise, professional, and insightful summary of the developer's skills, strengths, and potential focus areas.
+
+Username: ${userData.login}
+Public Repos: ${userData.public_repos}
+Followers: ${userData.followers}
+Following: ${userData.following}
+Top Languages: ${topLanguages.join(', ')}
+
+Generate a short, 2-3 sentence summary.`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiSummary = response.text();
+
+    res.json({ summary: aiSummary });
+  } catch (error) {
+    console.error("AI Analysis Error:", error);
+    res.status(500).json({ error: 'Failed to generate AI summary.' });
+  }
+});
+// ================================================
+
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
