@@ -250,4 +250,14 @@ Generate a short, balanced comparison.`;
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
+});// Trending developers (top 10 by followers)
+app.get('/api/github/trending', async (req, res) => {
+  try {
+    const query = 'followers:>1000';
+    const response = await axios.get(`https://api.github.com/search/users?q=${query}&sort=followers&order=desc&per_page=10`, { headers: githubHeaders });
+    const users = response.data.items;
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
