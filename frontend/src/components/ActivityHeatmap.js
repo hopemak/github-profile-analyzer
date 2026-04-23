@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import config from '../config';
+import API_URL from "../config";
 
 const ActivityHeatmap = ({ username }) => {
   const [data, setData] = useState([]);
@@ -9,7 +9,7 @@ const ActivityHeatmap = ({ username }) => {
   useEffect(() => {
     if (username) {
       setLoading(true);
-      axios.get(`${config.API_URL}/api/github/contributions/${username}`)
+      axios.get(`${API_URL}/api/github/contributions/${username}`)
         .then(res => {
           const contributions = Array.isArray(res.data) ? res.data : [];
           setData(contributions.slice(0, 28));
