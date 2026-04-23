@@ -7,21 +7,45 @@
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    @apply bg-gradient-to-br from-slate-800 to-slate-900 text-gray-100 antialiased;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    @apply text-gray-100 antialiased;
   }
-  h1, h2, h3 {
-    @apply font-semibold tracking-tight;
+  .bg-white {
+    background-color: #1e293b !important;
+    color: #f1f5f9;
+  }
+  .bg-gray-50, .bg-gray-100, .bg-white\/80, .bg-white\/\[\.\.\.\] {
+    background-color: #1e293b !important;
+  }
+  .shadow-md, .shadow-sm, .shadow-lg {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+  .text-gray-700, .text-gray-600, .text-gray-800, .text-gray-900 {
+    color: #cbd5e1;
+  }
+  .text-gray-500 {
+    color: #94a3b8;
+  }
+  .border-gray-100, .border-gray-200 {
+    border-color: #334155;
+  }
+  input, button {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+  input::placeholder {
+    color: #64748b;
+  }
+  input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    ring: 2px solid #3b82f6;
   }
 }
-
-@layer components {
-  .card-hover {
-    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
-  }
-  .btn-primary {
-    @apply px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-  }
-  .btn-secondary {
-    @apply px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl shadow-sm hover:bg-white/20 transition-all duration-200;
-  }
+h1, h2, h3 {
+  @apply font-semibold tracking-tight;
+}
+.card-hover {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
 }
