@@ -7,45 +7,29 @@
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-    @apply text-gray-100 antialiased;
-  }
-  .bg-white {
-    background-color: #1e293b !important;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     color: #f1f5f9;
+    min-height: 100vh;
   }
-  .bg-gray-50, .bg-gray-100, .bg-white\/80, .bg-white\/\[\.\.\.\] {
-    background-color: #1e293b !important;
-  }
-  .shadow-md, .shadow-sm, .shadow-lg {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  }
-  .text-gray-700, .text-gray-600, .text-gray-800, .text-gray-900 {
-    color: #cbd5e1;
-  }
-  .text-gray-500 {
-    color: #94a3b8;
-  }
-  .border-gray-100, .border-gray-200 {
-    border-color: #334155;
-  }
-  input, button {
-    background-color: #0f172a;
-    border-color: #334155;
-    color: #f1f5f9;
-  }
-  input::placeholder {
-    color: #64748b;
-  }
-  input:focus {
-    border-color: #3b82f6;
-    outline: none;
-    ring: 2px solid #3b82f6;
+  h1, h2, h3 {
+    @apply font-semibold tracking-tight;
   }
 }
-h1, h2, h3 {
-  @apply font-semibold tracking-tight;
-}
-.card-hover {
-  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+
+@layer components {
+  .card {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-xl;
+  }
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-2xl hover:-translate-y-1 hover:bg-white/15;
+  }
+  .btn-primary {
+    @apply px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-900;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-xl shadow-sm hover:bg-gray-700 hover:shadow transition-all duration-200;
+  }
+  .input-dark {
+    @apply px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
 }
