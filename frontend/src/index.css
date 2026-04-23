@@ -7,7 +7,7 @@
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gradient-to-br from-slate-800 to-slate-900 text-gray-100 antialiased;
   }
   h1, h2, h3 {
     @apply font-semibold tracking-tight;
@@ -22,6 +22,6 @@
     @apply px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
   .btn-secondary {
-    @apply px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-sm hover:bg-gray-50 hover:shadow transition-all duration-200;
+    @apply px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl shadow-sm hover:bg-white/20 transition-all duration-200;
   }
 }

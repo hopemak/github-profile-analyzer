@@ -14,11 +14,7 @@ const AISummary = ({ username }) => {
       setError('');
       axios.get(`${API_URL}/api/github/analyze/${username}`)
         .then(res => {
-          if (res.data && typeof res.data === 'object') {
-            setData(res.data);
-          } else {
-            setError('Invalid response from server');
-          }
+          setData(res.data);
           setLoading(false);
         })
         .catch(err => {
@@ -29,22 +25,22 @@ const AISummary = ({ username }) => {
     }
   }, [username]);
 
-  if (loading) return <div className="bg-white rounded-xl p-4 shadow-md mt-6">🤖 AI is analyzing...</div>;
-  if (error) return <div className="bg-white rounded-xl p-4 shadow-md mt-6 text-red-500">❌ {error}</div>;
+  if (loading) return <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 animate-pulse">🤖 AI is analyzing...</div>;
+  if (error) return <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-5 text-red-200">{error}</div>;
   if (!data) return null;
 
   return (
-    <div className="mt-6 space-y-6">
-      <div className="bg-white rounded-xl p-4 shadow-md">
-        <h3 className="font-bold text-lg mb-2">🤖 AI Developer Summary</h3>
-        <p className="text-gray-700">{data.summary || 'No summary available.'}</p>
+    <div className="space-y-6">
+      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+        <h3 className="font-bold text-xl text-white mb-3">🤖 AI Developer Summary</h3>
+        <p className="text-white/80 leading-relaxed">{data.summary || 'No summary available.'}</p>
       </div>
       {data.scores && <SkillScores scores={data.scores} />}
       {data.recommendations && data.recommendations.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-md">
-          <h3 className="font-bold text-lg mb-2">💡 Recommendations</h3>
-          <ul className="list-disc list-inside space-y-1">
-            {data.recommendations.map((rec, idx) => <li key={idx}>{rec}</li>)}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <h3 className="font-bold text-xl text-white mb-3">💡 Recommendations</h3>
+          <ul className="list-disc list-inside space-y-2">
+            {data.recommendations.map((rec, idx) => <li key={idx} className="text-white/80">{rec}</li>)}
           </ul>
         </div>
       )}

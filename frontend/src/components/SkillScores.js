@@ -9,8 +9,8 @@ const SkillScores = ({ scores }) => {
     { label: 'Collaboration', key: 'collaboration', color: 'from-purple-500 to-purple-700' },
   ];
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100">
-      <h3 className="font-semibold text-lg text-gray-800 mb-4 flex items-center gap-2">
+    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20">
+      <h3 className="font-semibold text-lg text-white mb-4 flex items-center gap-2">
         <span>📈</span> Skill Scores
       </h3>
       <div className="space-y-4">
@@ -18,11 +18,11 @@ const SkillScores = ({ scores }) => {
           const value = scores[item.key] || 0;
           return (
             <div key={item.key}>
-              <div className="flex justify-between text-sm font-medium text-gray-700 mb-1.5">
+              <div className="flex justify-between text-sm font-medium text-white/80 mb-1.5">
                 <span>{item.label}</span>
-                <span className="text-gray-900">{value}/10</span>
+                <span className="text-white">{value}/10</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-white/20 rounded-full h-2.5 overflow-hidden">
                 <div
                   className={`bg-gradient-to-r ${item.color} h-2.5 rounded-full transition-all duration-700 ease-out`}
                   style={{ width: `${(value / 10) * 100}%` }}
