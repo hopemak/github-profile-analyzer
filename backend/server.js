@@ -290,7 +290,63 @@ app.get('/api/github/commit-history/:username', async (req, res) => {
     res.json([]);
   }
 });
+
+// Leaderboard endpoint
+app.get("/api/github/leaderboard", async (req, res) => {
+  try {
+    const response = await axios.get("https://api.github.com/search/users?q=followers:>10000&sort=followers&order=desc&per_page=15", { headers: githubHeaders });
+    const users = response.data.items;
+    const leaderboard = [];
+    for (const user of users) {
+      try {
+        const userDetails = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        leaderboard.push({
+          rank: 0,
+          login: user.login,
+          avatar_url: user.avatar_url,
+          followers: userDetails.data.followers,
+          public_repos: userDetails.data.public_repos,
+          score: Math.min(100, Math.floor(userDetails.data.followers / 1000) + Math.min(20, userDetails.data.public_repos))
+        });
+      } catch(e) { continue; }
+    }
+    leaderboard.sort((a,b) => b.score - a.score);
+    leaderboard.forEach((u, i) => u.rank = i + 1);
+    res.json(leaderboard.slice(0, 15));
+  } catch (error) {
+    console.error("Leaderboard error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
+// Leaderboard endpoint
+app.get('/api/github/leaderboard', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.github.com/search/users?q=followers:>10000&sort=followers&order=desc&per_page=15', { headers: githubHeaders });
+    const users = response.data.items;
+    const leaderboard = [];
+    for (const user of users) {
+      try {
+        const userDetails = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        leaderboard.push({
+          rank: 0,
+          login: user.login,
+          avatar_url: user.avatar_url,
+          followers: userDetails.data.followers,
+          public_repos: userDetails.data.public_repos,
+          score: Math.min(100, Math.floor(userDetails.data.followers / 1000) + Math.min(20, userDetails.data.public_repos))
+        });
+      } catch(e) { continue; }
+    }
+    leaderboard.sort((a,b) => b.score - a.score);
+    leaderboard.forEach((u, i) => u.rank = i + 1);
+    res.json(leaderboard.slice(0, 15));
+  } catch (error) {
+    console.error('Leaderboard error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });// Trending developers (top 10 by followers)
 app.get('/api/github/trending', async (req, res) => {
