@@ -276,6 +276,32 @@ app.get('/api/github/leaderboard', async (req, res) => {
   }
 });
 
+
+// Trending developers endpoint
+app.get("/api/github/trending", async (req, res) => {
+  try {
+    const response = await axios.get("https://api.github.com/search/users?q=followers:>1000&sort=followers&order=desc&per_page=20", { headers: githubHeaders });
+    const users = response.data.items;
+    const trending = [];
+    for (const user of users) {
+      try {
+        const userDetails = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        trending.push({
+          login: user.login,
+          avatar_url: user.avatar_url,
+          name: userDetails.data.name || user.login,
+          followers: userDetails.data.followers,
+          public_repos: userDetails.data.public_repos
+        });
+      } catch(e) { continue; }
+    }
+    res.json(trending);
+  } catch (error) {
+    console.error("Trending error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
