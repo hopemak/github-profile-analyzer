@@ -10,6 +10,7 @@ import AISummary from './components/AISummary';
 import AICoach from "./components/AICoach";
 import AICoach from "./components/AICoach";
 import AICoach from "./components/AICoach";
+import AICoach from "./components/AICoach";
 import CommitChart from './components/CommitChart';
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
@@ -64,6 +65,7 @@ function Home() {
             </div>
             <CommitChart username={user.login} />
             <AISummary username={user.login} />
+            <AICoach username={user.login} />
             <AICoach username={user.login} />
             <AICoach username={user.login} />
             <AICoach username={user.login} />
