@@ -261,3 +261,33 @@ app.get('/api/github/trending', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Enhanced trending developers with details
+app.get('/api/github/trending/details', async (req, res) => {
+  try {
+    // Get top users by followers
+    const searchRes = await axios.get('https://api.github.com/search/users?q=followers:>1000&sort=followers&order=desc&per_page=10', { headers: githubHeaders });
+    const users = searchRes.data.items;
+    
+    // Fetch detailed info for each user in parallel
+    const detailedUsers = await Promise.all(users.map(async (user) => {
+      const userRes = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+      const reposRes = await axios.get(`https://api.github.com/users/${user.login}/repos?per_page=100&sort=stars&direction=desc`, { headers: githubHeaders });
+      const totalStars = reposRes.data.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+      return {
+        login: userRes.data.login,
+        name: userRes.data.name || userRes.data.login,
+        avatar_url: userRes.data.avatar_url,
+        public_repos: userRes.data.public_repos,
+        followers: userRes.data.followers,
+        following: userRes.data.following,
+        totalStars: totalStars,
+        html_url: userRes.data.html_url
+      };
+    }));
+    res.json(detailedUsers);
+  } catch (error) {
+    console.error('Trending error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
