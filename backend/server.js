@@ -621,3 +621,29 @@ app.get('/api/github/leaderboard', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Leaderboard endpoint
+app.get('/api/github/leaderboard', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.github.com/search/users?q=followers:>10000&sort=followers&order=desc&per_page=15', { headers: githubHeaders });
+    const users = response.data.items;
+    const results = [];
+    for (const user of users) {
+      try {
+        const userData = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        results.push({
+          login: user.login,
+          avatar_url: user.avatar_url,
+          followers: userData.data.followers,
+          public_repos: userData.data.public_repos,
+          score: Math.min(100, Math.floor(userData.data.followers / 500) + Math.min(20, userData.data.public_repos))
+        });
+      } catch(e) { continue; }
+    }
+    results.sort((a,b) => b.score - a.score);
+    results.forEach((u, i) => u.rank = i + 1);
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
