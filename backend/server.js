@@ -279,3 +279,24 @@ app.get('/api/github/leaderboard', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
+
+// Translation endpoint for AI summary
+app.post('/api/github/translate', async (req, res) => {
+  const { text, targetLang } = req.body;
+  if (!text || !targetLang) {
+    return res.status(400).json({ error: 'Missing text or targetLang' });
+  }
+  try {
+    const prompt = `Translate the following text to ${targetLang}. Respond with ONLY the translated text, no explanations or quotes:\n\n${text}`;
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.3,
+    });
+    const translated = completion.choices[0]?.message?.content || text;
+    res.json({ translated: translated.trim() });
+  } catch (error) {
+    console.error('Translation error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
