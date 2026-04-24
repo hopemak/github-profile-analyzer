@@ -276,11 +276,10 @@ app.get('/api/github/leaderboard', async (req, res) => {
   }
 });
 
-
-// Trending developers endpoint
-app.get("/api/github/trending", async (req, res) => {
+// Trending endpoint
+app.get('/api/github/trending', async (req, res) => {
   try {
-    const response = await axios.get("https://api.github.com/search/users?q=followers:>1000&sort=followers&order=desc&per_page=20", { headers: githubHeaders });
+    const response = await axios.get('https://api.github.com/search/users?q=followers:>1000&sort=followers&order=desc&per_page=20', { headers: githubHeaders });
     const users = response.data.items;
     const trending = [];
     for (const user of users) {
@@ -297,65 +296,13 @@ app.get("/api/github/trending", async (req, res) => {
     }
     res.json(trending);
   } catch (error) {
-    console.error("Trending error:", error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// Weekly commit history endpoint
-app.get("/api/github/commit-history/:username", async (req, res) => {
-  const { username } = req.params;
-  try {
-    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
-    const events = eventsRes.data;
-    const weeklyCommits = new Map();
-    events.forEach(event => {
-      if (event.type === "PushEvent") {
-        const date = new Date(event.created_at);
-        const year = date.getFullYear();
-        const weekNum = Math.ceil((date - new Date(year, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
-        const weekKey = `${year}-W${weekNum}`;
-        weeklyCommits.set(weekKey, (weeklyCommits.get(weekKey) || 0) + (event.payload.commits?.length || 0));
-      }
-    });
-    const sorted = Array.from(weeklyCommits.entries())
-      .map(([week, count]) => ({ week, count }))
-      .sort((a, b) => a.week.localeCompare(b.week))
-      .slice(-24);
-    res.json(sorted);
-  } catch (error) {
-    console.error("Commit history error:", error.message);
-    res.json([]);
-  }
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
-});
-
-// Translation endpoint for AI summary
-app.post('/api/github/translate', async (req, res) => {
-  const { text, targetLang } = req.body;
-  if (!text || !targetLang) {
-    return res.status(400).json({ error: 'Missing text or targetLang' });
-  }
-  try {
-    const prompt = `Translate the following text to ${targetLang}. Respond with ONLY the translated text, no explanations or quotes:\n\n${text}`;
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
-      temperature: 0.3,
-    });
-    const translated = completion.choices[0]?.message?.content || text;
-    res.json({ translated: translated.trim() });
-  } catch (error) {
-    console.error('Translation error:', error.message);
+    console.error('Trending error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Weekly commit history endpoint
+app.get('/api/github/commit-history/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
@@ -379,4 +326,29 @@ app.post('/api/github/translate', async (req, res) => {
     console.error('Commit history error:', error.message);
     res.json([]);
   }
+});
+
+// Translation endpoint
+app.post('/api/github/translate', async (req, res) => {
+  const { text, targetLang } = req.body;
+  if (!text || !targetLang) {
+    return res.status(400).json({ error: 'Missing text or targetLang' });
+  }
+  try {
+    const prompt = `Translate the following text to ${targetLang}. Respond with ONLY the translated text, no explanations or quotes:\n\n${text}`;
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.3,
+    });
+    const translated = completion.choices[0]?.message?.content || text;
+    res.json({ translated: translated.trim() });
+  } catch (error) {
+    console.error('Translation error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
