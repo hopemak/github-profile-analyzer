@@ -11,7 +11,7 @@ const ProfileCard = ({ user }) => {
             className="w-20 h-20 rounded-full border-2 border-white/30 shadow-md"
           />
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-white">{user.name}<FavoriteButton username={user.login} /></h2>
+            <h2 className="text-2xl font-bold text-white">{user.name}<FavoriteButton username={user.login} /><FavoriteButton username={user.login} /></h2>
             <p className="text-white/60 font-mono text-sm">@{user.login}</p>
             {user.bio && <p className="mt-2 text-white/70 text-sm line-clamp-2">{user.bio}</p>}
           </div>

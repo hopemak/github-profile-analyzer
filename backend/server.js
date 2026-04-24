@@ -417,3 +417,101 @@ app.get('/api/favorites', async (req, res) => {
   const user = await User.findById(decoded.id);
   res.json(user.favorites);
 });
+
+// ========== AUTHENTICATION ==========
+const passport = require('passport');
+const GitHubStrategy = require('passport-github2').Strategy;
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
+
+app.use(cookieParser());
+app.use(passport.initialize());
+
+// MongoDB User Model
+const UserSchema = new mongoose.Schema({
+  githubId: { type: String, required: true, unique: true },
+  username: { type: String, required: true },
+  avatarUrl: String,
+  favorites: [{ type: String }], // store GitHub usernames
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model('User', UserSchema);
+
+// Connect to MongoDB (only if URI is provided)
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB error:', err));
+}
+
+// GitHub OAuth Strategy
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_CLIENT_ID,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET,
+  callbackURL: `${process.env.API_URL || 'http://localhost:5000'}/api/auth/github/callback`
+}, async (accessToken, refreshToken, profile, done) => {
+  let user = await User.findOne({ githubId: profile.id });
+  if (!user) {
+    user = await User.create({
+      githubId: profile.id,
+      username: profile.username,
+      avatarUrl: profile._json.avatar_url,
+      favorites: []
+    });
+  }
+  done(null, user);
+}));
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+  const user = await User.findById(id);
+  done(null, user);
+});
+
+// Auth endpoints
+app.get('/api/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/api/auth/github/callback', passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
+  const token = jwt.sign({ id: req.user.id, username: req.user.username }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-callback?token=${token}`);
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.json(null);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    User.findById(decoded.id).then(user => res.json(user));
+  } catch { res.json(null); }
+});
+
+// Favorites endpoints
+app.post('/api/favorites/:username', async (req, res) => {
+  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = await User.findById(decoded.id);
+  if (!user.favorites.includes(req.params.username)) {
+    user.favorites.push(req.params.username);
+    await user.save();
+  }
+  res.json(user.favorites);
+});
+
+app.delete('/api/favorites/:username', async (req, res) => {
+  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = await User.findById(decoded.id);
+  user.favorites = user.favorites.filter(u => u !== req.params.username);
+  await user.save();
+  res.json(user.favorites);
+});
+
+app.get('/api/favorites', async (req, res) => {
+  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.json([]);
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = await User.findById(decoded.id);
+  res.json(user.favorites);
+});
