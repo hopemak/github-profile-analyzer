@@ -1018,3 +1018,77 @@ app.get('/api/github/repo-quality/:username', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Get analysis data for shareable links
+app.get('/api/github/share/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    // Fetch all required data
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`, { headers: githubHeaders });
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: githubHeaders });
+    const repos = reposResponse.data;
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    
+    // Calculate commits
+    let totalCommits = 0;
+    events.forEach(event => {
+      if (event.type === 'PushEvent') totalCommits += event.payload.commits?.length || 0;
+    });
+    
+    // Get top languages
+    const repoLanguages = repos.map(repo => repo.language).filter(lang => lang);
+    const languageCounts = repoLanguages.reduce((acc, lang) => {
+      acc[lang] = (acc[lang] || 0) + 1;
+      return acc;
+    }, {});
+    const topLanguages = Object.entries(languageCounts)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([lang]) => lang);
+    
+    // Calculate scores
+    const languageCount = new Set(repoLanguages).size;
+    let problemSolving = Math.min(10, Math.floor(3 + (repos.length / 10) + (languageCount / 2) + (totalCommits / 100)));
+    let quality = 5;
+    const hasReadme = repos.some(r => r.description && r.description.length > 10);
+    const hasLicense = repos.some(r => r.license);
+    if (hasReadme) quality += 2;
+    if (hasLicense) quality += 2;
+    if (repos.length > 5) quality += 1;
+    let codeQuality = Math.min(10, quality);
+    let consistency = Math.min(10, Math.floor(3 + (totalCommits / 50) + (repos.length / 5)));
+    let collab = Math.min(10, Math.floor(2 + (userResponse.data.followers / 10) + (userResponse.data.following / 10)));
+    
+    const overallScore = Math.round((problemSolving + codeQuality + consistency + collab) / 4);
+    
+    // Get AI summary
+    let summary = "";
+    try {
+      const prompt = `Write a one-sentence summary of this GitHub developer's skills: ${username}. They have ${repos.length} repos, ${userResponse.data.followers} followers, and use ${topLanguages.join(', ')}.`;
+      const completion = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.5,
+      });
+      summary = completion.choices[0]?.message?.content || `${username} is an active developer on GitHub.`;
+    } catch (err) {
+      summary = `${username} is an active developer on GitHub.`;
+    }
+    
+    res.json({
+      username: userResponse.data.login,
+      name: userResponse.data.name || userResponse.data.login,
+      avatar_url: userResponse.data.avatar_url,
+      followers: userResponse.data.followers,
+      public_repos: repos.length,
+      totalCommits: totalCommits,
+      topLanguages: topLanguages,
+      overallScore: overallScore,
+      summary: summary
+    });
+  } catch (error) {
+    console.error('Share error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});

@@ -15,6 +15,7 @@ import CommitChart from './components/CommitChart';
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
 import Leaderboard from './pages/Leaderboard';
+import Share from "./pages/Share";
 import { exportToPDF } from './utils/pdfExport';
 import API_URL from './config';
 
@@ -122,6 +123,7 @@ function AppWrapper() {
             <Route path="/compare/:userA/:userB" element={<Compare />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/share/:username" element={<Share />} />
           </Routes>
           <AIChat />
         </Router>
