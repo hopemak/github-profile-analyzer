@@ -248,6 +248,34 @@ Generate a short, balanced comparison.`;
   }
 });
 
+
+// Weekly commit history (last 24 weeks)
+app.get('/api/github/commit-history/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    const weeklyCommits = new Map();
+    events.forEach(event => {
+      if (event.type === 'PushEvent') {
+        const date = new Date(event.created_at);
+        const year = date.getFullYear();
+        const weekNum = Math.ceil((date - new Date(year, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+        const weekKey = `${year}-W${weekNum}`;
+        const commits = event.payload.commits?.length || 0;
+        weeklyCommits.set(weekKey, (weeklyCommits.get(weekKey) || 0) + commits);
+      }
+    });
+    const sorted = Array.from(weeklyCommits.entries())
+      .map(([week, count]) => ({ week, count }))
+      .sort((a,b) => a.week.localeCompare(b.week))
+      .slice(-24);
+    res.json(sorted);
+  } catch (error) {
+    console.error('Commit history error:', error.message);
+    res.json([]);
+  }
+});
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });// Trending developers (top 10 by followers)
