@@ -9,13 +9,14 @@ import TopLanguages from './components/TopLanguages';
 import ActivityHeatmap from './components/ActivityHeatmap';
 import AISummary from './components/AISummary';
 import AICoach from './components/AICoach';
-import ProjectQuality from "./components/ProjectQuality";
 import AIChat from './components/AIChat';
 import CommitChart from './components/CommitChart';
+import ProjectQuality from './components/ProjectQuality';
+import EnhancedStats from "./components/EnhancedStats";
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
 import Leaderboard from './pages/Leaderboard';
-import Share from "./pages/Share";
+import Share from './pages/Share';
 import { exportToPDF } from './utils/pdfExport';
 import API_URL from './config';
 
@@ -78,6 +79,7 @@ function Home() {
               <ActivityHeatmap username={user.login} />
             </div>
             <CommitChart username={user.login} />
+            <EnhancedStats username={user.login} />
             <AISummary username={user.login} />
             <AICoach username={user.login} />
             <ProjectQuality username={user.login} />
@@ -123,7 +125,7 @@ function AppWrapper() {
             <Route path="/compare/:userA/:userB" element={<Compare />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/share/:username" element={<Share />} />
+            <Route path="/share/:username" element={<Share />} />
           </Routes>
           <AIChat />
         </Router>

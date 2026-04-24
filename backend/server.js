@@ -1092,3 +1092,73 @@ app.get('/api/github/share/:username', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Time-series stats endpoint
+app.get('/api/github/timeline/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    // Fetch user events for timeline data
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    
+    // Process events by month
+    const monthlyData = new Map();
+    const starEvents = [];
+    const commitData = new Map();
+    
+    events.forEach(event => {
+      const date = new Date(event.created_at);
+      const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      const monthName = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      
+      // Count commits per month
+      if (event.type === 'PushEvent') {
+        const commits = event.payload.commits?.length || 0;
+        commitData.set(monthKey, (commitData.get(monthKey) || 0) + commits);
+      }
+      
+      // Track star events
+      if (event.type === 'WatchEvent') {
+        starEvents.push({
+          date: event.created_at,
+          repo: event.repo.name
+        });
+      }
+    });
+    
+    // Fetch repository star history (approximate via creation dates)
+    const reposRes = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100&sort=created`, { headers: githubHeaders });
+    const repos = reposRes.data;
+    
+    const repoStars = repos.map(repo => ({
+      name: repo.name,
+      stars: repo.stargazers_count,
+      created_at: repo.created_at,
+      language: repo.language
+    })).filter(r => r.stars > 0).sort((a,b) => b.stars - a.stars).slice(0, 10);
+    
+    // Prepare commit timeline
+    const commitTimeline = Array.from(commitData.entries())
+      .map(([key, count]) => ({ month: key, commits: count }))
+      .sort((a,b) => a.month.localeCompare(b.month))
+      .slice(-12);
+    
+    // Calculate activity summary
+    const totalCommits = Array.from(commitData.values()).reduce((a,b) => a + b, 0);
+    const activeMonths = commitData.size;
+    const avgCommitsPerMonth = activeMonths > 0 ? Math.round(totalCommits / activeMonths) : 0;
+    
+    res.json({
+      commitTimeline: commitTimeline,
+      topStarredRepos: repoStars,
+      totalCommits: totalCommits,
+      activeMonths: activeMonths,
+      avgCommitsPerMonth: avgCommitsPerMonth,
+      totalStars: repoStars.reduce((sum, r) => sum + r.stars, 0),
+      languages: [...new Set(repos.map(r => r.language).filter(Boolean))]
+    });
+  } catch (error) {
+    console.error('Timeline error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
