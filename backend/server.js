@@ -918,3 +918,103 @@ Answer the question based on the GitHub profile data above. Be helpful, specific
     res.status(500).json({ error: error.message });
   }
 });
+
+// Project Quality Analyzer endpoint
+app.get('/api/github/repo-quality/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const reposRes = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`, { headers: githubHeaders });
+    const repos = reposRes.data;
+    
+    const analyzedRepos = repos.map(repo => {
+      let score = 0;
+      let details = [];
+      
+      // README check
+      if (repo.description && repo.description.length > 20) {
+        score += 15;
+        details.push('✅ Good README description');
+      } else if (repo.description) {
+        score += 5;
+        details.push('⚠️ Short description');
+      } else {
+        details.push('❌ No description');
+      }
+      
+      // License check
+      if (repo.license) {
+        score += 20;
+        details.push('✅ Has license');
+      } else {
+        details.push('❌ No license');
+      }
+      
+      // Stars (popularity)
+      if (repo.stargazers_count > 100) {
+        score += 20;
+        details.push('⭐ Popular (100+ stars)');
+      } else if (repo.stargazers_count > 10) {
+        score += 10;
+        details.push('⭐ Has some stars');
+      } else if (repo.stargazers_count > 0) {
+        score += 5;
+      }
+      
+      // Forks (collaboration)
+      if (repo.forks_count > 10) {
+        score += 10;
+        details.push('🔀 Active forks');
+      } else if (repo.forks_count > 0) {
+        score += 5;
+      }
+      
+      // Recent activity
+      const lastPush = new Date(repo.pushed_at);
+      const daysSincePush = Math.floor((Date.now() - lastPush) / (1000 * 60 * 60 * 24));
+      if (daysSincePush < 30) {
+        score += 15;
+        details.push('🔄 Recently updated');
+      } else if (daysSincePush < 90) {
+        score += 8;
+        details.push('⚠️ Updated within 3 months');
+      } else {
+        details.push('❌ Stale (>3 months)');
+      }
+      
+      // Topics (project maturity)
+      if (repo.topics && repo.topics.length > 0) {
+        score += 10;
+        details.push(`🏷️ Topics: ${repo.topics.slice(0, 3).join(', ')}`);
+      }
+      
+      // Has wiki or pages
+      if (repo.has_wiki) {
+        score += 5;
+        details.push('📚 Has wiki');
+      }
+      
+      // Language diversity within repo (has multiple languages?)
+      // This is approximated - actual language breakdown needs another API call
+      
+      return {
+        name: repo.name,
+        description: repo.description || 'No description',
+        url: repo.html_url,
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        language: repo.language || 'Unknown',
+        updated_at: repo.pushed_at,
+        score: Math.min(100, score),
+        details: details,
+        quality: score >= 80 ? 'Professional' : score >= 50 ? 'Good' : score >= 30 ? 'Basic' : 'Needs Work'
+      };
+    });
+    
+    // Sort by score descending
+    analyzedRepos.sort((a, b) => b.score - a.score);
+    res.json(analyzedRepos.slice(0, 10)); // Return top 10 repos
+  } catch (error) {
+    console.error('Repo quality error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
