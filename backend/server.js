@@ -326,3 +326,30 @@ app.post('/api/github/translate', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Weekly commit history endpoint
+app.get('/api/github/commit-history/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    const weeklyCommits = new Map();
+    events.forEach(event => {
+      if (event.type === 'PushEvent') {
+        const date = new Date(event.created_at);
+        const year = date.getFullYear();
+        const weekNum = Math.ceil((date - new Date(year, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+        const weekKey = `${year}-W${weekNum}`;
+        weeklyCommits.set(weekKey, (weeklyCommits.get(weekKey) || 0) + (event.payload.commits?.length || 0));
+      }
+    });
+    const sorted = Array.from(weeklyCommits.entries())
+      .map(([week, count]) => ({ week, count }))
+      .sort((a, b) => a.week.localeCompare(b.week))
+      .slice(-24);
+    res.json(sorted);
+  } catch (error) {
+    console.error('Commit history error:', error.message);
+    res.json([]);
+  }
+});
