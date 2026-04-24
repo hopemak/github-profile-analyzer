@@ -520,3 +520,87 @@ app.get('/api/github/coach/:username', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Personal AI Coach - learning resources based on low scores
+app.get('/api/github/coach/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    // First get the user's analysis with scores
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`, { headers: githubHeaders });
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: githubHeaders });
+    const repos = reposResponse.data;
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    
+    let totalCommits = 0;
+    events.forEach(event => {
+      if (event.type === 'PushEvent') totalCommits += event.payload.commits?.length || 0;
+    });
+    
+    const languageCount = new Set(repos.map(r => r.language).filter(Boolean)).size;
+    let problemSolving = Math.min(10, Math.floor(3 + (repos.length / 10) + (languageCount / 2) + (totalCommits / 100)));
+    problemSolving = Math.min(10, Math.max(1, problemSolving));
+    
+    let quality = 5;
+    const hasReadme = repos.some(r => r.description && r.description.length > 10);
+    const hasLicense = repos.some(r => r.license);
+    if (hasReadme) quality += 2;
+    if (hasLicense) quality += 2;
+    if (repos.length > 5) quality += 1;
+    let codeQuality = Math.min(10, quality);
+    
+    let consistency = Math.min(10, Math.floor(3 + (totalCommits / 50) + (repos.length / 5)));
+    consistency = Math.min(10, Math.max(1, consistency));
+    
+    let collab = Math.min(10, Math.floor(2 + (userResponse.data.followers / 10) + (userResponse.data.following / 10)));
+    collab = Math.min(10, Math.max(1, collab));
+    
+    const scores = { problemSolving, codeQuality, consistency, collaboration: collab };
+    
+    // Find lowest score
+    const sorted = Object.entries(scores).sort((a,b) => a[1] - b[1]);
+    const lowest = sorted[0];
+    const lowestScore = lowest[1];
+    const lowestCategory = lowest[0];
+    
+    // Category mappings for search
+    const categoryMap = {
+      problemSolving: 'algorithm challenges data structures',
+      codeQuality: 'clean code best practices testing',
+      consistency: 'daily coding habits productivity',
+      collaboration: 'open source contributions git workflow'
+    };
+    
+    const searchQuery = categoryMap[lowestCategory] || 'coding tutorial';
+    
+    // Search GitHub for learning resources
+    const searchRes = await axios.get(`https://api.github.com/search/repositories?q=${searchQuery}+stars:>100&sort=stars&order=desc&per_page=5`, { headers: githubHeaders });
+    
+    const resources = searchRes.data.items.map(repo => ({
+      name: repo.name,
+      description: repo.description || 'No description',
+      url: repo.html_url,
+      stars: repo.stargazers_count,
+      language: repo.language
+    }));
+    
+    // Generate AI advice
+    const advicePrompt = `A developer has a ${lowestCategory} score of ${lowestScore}/10. Provide 2-3 short, practical tips to improve this skill. Keep response under 200 characters.`;
+    const adviceCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: advicePrompt }],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.7,
+    });
+    const advice = adviceCompletion.choices[0]?.message?.content || "Practice regularly and review best practices.";
+    
+    res.json({
+      lowestCategory: lowestCategory,
+      lowestScore: lowestScore,
+      advice: advice,
+      resources: resources
+    });
+  } catch (error) {
+    console.error('Coach error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
