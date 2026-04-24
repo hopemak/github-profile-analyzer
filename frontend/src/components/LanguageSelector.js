@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import API_URL from '../config';
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
