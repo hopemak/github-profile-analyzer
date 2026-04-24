@@ -9,6 +9,7 @@ import ActivityHeatmap from './components/ActivityHeatmap';
 import AISummary from './components/AISummary';
 import AICoach from './components/AICoach';
 import AIChat from "./components/AIChat";
+import AIChat from "./components/AIChat";
 import CommitChart from './components/CommitChart';
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
@@ -64,6 +65,7 @@ function Home() {
             <CommitChart username={user.login} />
             <AISummary username={user.login} />
             <AICoach username={user.login} />
+            <AIChat username={user.login} />
             <AIChat username={user.login} />
             <div className="flex justify-center">
               <button onClick={handleDownloadPDF} className="px-6 py-2 bg-red-600 text-white rounded-xl">📄 Download PDF</button>

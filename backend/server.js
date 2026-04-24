@@ -837,3 +837,84 @@ Answer the question based on the GitHub profile data above. Be helpful, specific
     res.status(500).json({ error: error.message });
   }
 });
+
+// AI Chat endpoint - ask questions about a developer
+app.post('/api/github/chat/:username', async (req, res) => {
+  const { username } = req.params;
+  const { question } = req.body;
+  
+  if (!question) {
+    return res.status(400).json({ error: 'Question is required' });
+  }
+  
+  try {
+    // Fetch GitHub data for context
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`, { headers: githubHeaders });
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`, { headers: githubHeaders });
+    const repos = reposResponse.data;
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    
+    // Calculate commit count
+    let totalCommits = 0;
+    events.forEach(event => {
+      if (event.type === 'PushEvent') totalCommits += event.payload.commits?.length || 0;
+    });
+    
+    // Get top languages
+    const repoLanguages = repos.map(repo => repo.language).filter(lang => lang);
+    const languageCounts = repoLanguages.reduce((acc, lang) => {
+      acc[lang] = (acc[lang] || 0) + 1;
+      return acc;
+    }, {});
+    const topLanguages = Object.entries(languageCounts)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([lang]) => lang);
+    
+    // Calculate scores
+    const languageCount = new Set(repoLanguages).size;
+    let problemSolving = Math.min(10, Math.floor(3 + (repos.length / 10) + (languageCount / 2) + (totalCommits / 100)));
+    let quality = 5;
+    const hasReadme = repos.some(r => r.description && r.description.length > 10);
+    const hasLicense = repos.some(r => r.license);
+    if (hasReadme) quality += 2;
+    if (hasLicense) quality += 2;
+    if (repos.length > 5) quality += 1;
+    let codeQuality = Math.min(10, quality);
+    let consistency = Math.min(10, Math.floor(3 + (totalCommits / 50) + (repos.length / 5)));
+    let collab = Math.min(10, Math.floor(2 + (userResponse.data.followers / 10) + (userResponse.data.following / 10)));
+    
+    // Build context for AI
+    const context = `
+Developer Information:
+- Username: ${username}
+- Name: ${userResponse.data.name || username}
+- Bio: ${userResponse.data.bio || 'No bio'}
+- Public Repositories: ${repos.length}
+- Followers: ${userResponse.data.followers}
+- Following: ${userResponse.data.following}
+- Total Commits (approx): ${totalCommits}
+- Top Languages: ${topLanguages.join(', ')}
+- Skill Scores (0-10): Problem Solving=${problemSolving}, Code Quality=${codeQuality}, Consistency=${consistency}, Collaboration=${collab}
+
+Recent Repositories:
+${repos.slice(0, 5).map(r => `- ${r.name}: ${r.description || 'No description'} (${r.language || 'Unknown'})`).join('\n')}
+
+User Question: ${question}
+
+Answer the question based on the GitHub profile data above. Be helpful, specific, and concise. If recommending improvements, provide actionable advice.`;
+    
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: context }],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.7,
+    });
+    
+    const answer = completion.choices[0]?.message?.content || "I couldn't generate an answer. Please try again.";
+    res.json({ answer });
+  } catch (error) {
+    console.error('Chat error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
