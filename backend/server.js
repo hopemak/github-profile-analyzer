@@ -136,9 +136,17 @@ app.get('/api/github/analyze/:username', async (req, res) => {
     let summary = "";
     try {
       const prompt = `You are an expert developer. Write a 2-3 sentence summary of this GitHub user's skills and strengths. Respond with ONLY the summary text, no extra words.
+ 
+  // Fetch additional data
+  const gistsRes = await axios.get(`https://api.github.com/users/${username}/gists?per_page=1`, { headers: githubHeaders });
+  const gistCount = parseInt(gistsRes.headers.link?.match(/&page=(\d+)>/)?.[1] || 1);
+  const issuesRes = await axios.get(`https://api.github.com/search/issues?q=author:${username}+type:issue`, { headers: githubHeaders });
+  const issueCount = issuesRes.data.total_count;
 
 Username: ${userData.login}
 Public Repos: ${userData.public_repos}
+nGists: ${gistCount}
+Open Issues (authored): ${issueCount}
 Total commits (approx): ${totalCommits}
 Followers: ${userData.followers}
 Top Languages: ${topLanguages.join(', ')}`;
@@ -215,6 +223,12 @@ app.get('/api/github/compare/:userA/:userB', async (req, res) => {
     const statsB = computeStats(userBData, reposB);
 
     const prompt = `Compare the following two GitHub developers. Provide a concise, insightful comparison (3-4 sentences) focusing on their activity, skill areas, code quality, collaboration, and potential strengths/weaknesses.
+ 
+  // Fetch additional data
+  const gistsRes = await axios.get(`https://api.github.com/users/${username}/gists?per_page=1`, { headers: githubHeaders });
+  const gistCount = parseInt(gistsRes.headers.link?.match(/&page=(\d+)>/)?.[1] || 1);
+  const issuesRes = await axios.get(`https://api.github.com/search/issues?q=author:${username}+type:issue`, { headers: githubHeaders });
+  const issueCount = issuesRes.data.total_count;
 
 Developer A: ${userA}
 - Repos: ${statsA.public_repos}
@@ -514,4 +528,54 @@ app.get('/api/favorites', async (req, res) => {
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const user = await User.findById(decoded.id);
   res.json(user.favorites);
+});
+
+// Leaderboard: top developers by computed skill score
+app.get('/api/github/leaderboard', async (req, res) => {
+  try {
+    // Fetch top users by followers (source for leaderboard candidates)
+    const searchRes = await axios.get('https://api.github.com/search/users?q=followers:>5000&sort=followers&order=desc&per_page=20', { headers: githubHeaders });
+    const users = searchRes.data.items;
+    
+    const leaderboard = await Promise.all(users.map(async (user) => {
+      try {
+        const details = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        const reposRes = await axios.get(`https://api.github.com/users/${user.login}/repos?per_page=100`, { headers: githubHeaders });
+        const repos = reposRes.data;
+        
+        // Calculate skill score components
+        const languageCount = new Set(repos.map(r => r.language).filter(Boolean)).size;
+        const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+        const avgStars = repos.length ? totalStars / repos.length : 0;
+        
+        // Score formula (0-100)
+        const followerScore = Math.min(50, Math.floor(details.data.followers / 1000) * 5);
+        const repoScore = Math.min(20, repos.length);
+        const langScore = Math.min(15, languageCount * 3);
+        const starScore = Math.min(15, avgStars / 100);
+        const totalScore = followerScore + repoScore + langScore + starScore;
+        
+        return {
+          rank: 0,
+          login: user.login,
+          avatar_url: user.avatar_url,
+          followers: details.data.followers,
+          public_repos: repos.length,
+          languages: languageCount,
+          avgStars: Math.round(avgStars),
+          score: totalScore
+        };
+      } catch (err) {
+        return null;
+      }
+    }));
+    
+    const filtered = leaderboard.filter(u => u !== null);
+    filtered.sort((a,b) => b.score - a.score);
+    filtered.forEach((user, idx) => user.rank = idx + 1);
+    res.json(filtered.slice(0, 15));
+  } catch (error) {
+    console.error('Leaderboard error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });

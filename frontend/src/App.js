@@ -11,6 +11,7 @@ import CommitChart from './components/CommitChart';
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
 import Favorites from './pages/Favorites';
+import Leaderboard from "./pages/Leaderboard";
 import AuthButton from './components/auth/AuthButton';
 import { exportToPDF } from './utils/pdfExport';
 import API_URL from './config';
@@ -93,6 +94,7 @@ function AppWrapper() {
           <Route path="/compare/:userA/:userB" element={<Compare />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/favorites" element={<Favorites />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
         </Routes>
       </Router>
     </ThemeProvider>
