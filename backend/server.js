@@ -688,3 +688,71 @@ app.get('/api/github/coach/:username', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Personal AI Coach endpoint
+app.get('/api/github/coach/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`, { headers: githubHeaders });
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: githubHeaders });
+    const repos = reposResponse.data;
+    const eventsRes = await axios.get(`https://api.github.com/users/${username}/events?per_page=100`, { headers: githubHeaders });
+    const events = eventsRes.data;
+    
+    let totalCommits = 0;
+    events.forEach(event => {
+      if (event.type === 'PushEvent') totalCommits += event.payload.commits?.length || 0;
+    });
+    
+    const languageCount = new Set(repos.map(r => r.language).filter(Boolean)).size;
+    let problemSolving = Math.min(10, Math.floor(3 + (repos.length / 10) + (languageCount / 2) + (totalCommits / 100)));
+    problemSolving = Math.min(10, Math.max(1, problemSolving));
+    
+    let quality = 5;
+    const hasReadme = repos.some(r => r.description && r.description.length > 10);
+    const hasLicense = repos.some(r => r.license);
+    if (hasReadme) quality += 2;
+    if (hasLicense) quality += 2;
+    if (repos.length > 5) quality += 1;
+    let codeQuality = Math.min(10, quality);
+    
+    let consistency = Math.min(10, Math.floor(3 + (totalCommits / 50) + (repos.length / 5)));
+    consistency = Math.min(10, Math.max(1, consistency));
+    
+    let collab = Math.min(10, Math.floor(2 + (userResponse.data.followers / 10) + (userResponse.data.following / 10)));
+    collab = Math.min(10, Math.max(1, collab));
+    
+    const scores = { problemSolving, codeQuality, consistency, collaboration: collab };
+    const sorted = Object.entries(scores).sort((a,b) => a[1] - b[1]);
+    const lowest = sorted[0];
+    const lowestScore = lowest[1];
+    const lowestCategory = lowest[0];
+    
+    const categoryNames = {
+      problemSolving: 'Problem Solving',
+      codeQuality: 'Code Quality',
+      consistency: 'Consistency',
+      collaboration: 'Collaboration'
+    };
+    
+    const adviceMap = {
+      problemSolving: 'Practice algorithms on LeetCode, solve coding challenges daily, and contribute to open source issues labeled "good first issue".',
+      codeQuality: 'Write unit tests, add comments, follow style guides, and use ESLint. Review clean code principles.',
+      consistency: 'Set a daily coding schedule, use GitHub Actions for automation, and maintain a commit streak.',
+      collaboration: 'Review others PRs, participate in discussions, join open source communities, and attend hackathons.'
+    };
+    
+    res.json({
+      lowestCategory: categoryNames[lowestCategory],
+      lowestScore: lowestScore,
+      advice: adviceMap[lowestCategory] || 'Keep learning and practicing!',
+      resources: [
+        { name: 'FreeCodeCamp', url: 'https://www.freecodecamp.org', description: 'Free coding tutorials' },
+        { name: 'GitHub Learning Lab', url: 'https://lab.github.com', description: 'Learn by doing' }
+      ]
+    });
+  } catch (error) {
+    console.error('Coach error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
