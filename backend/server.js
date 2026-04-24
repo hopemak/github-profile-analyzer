@@ -579,3 +579,45 @@ app.get('/api/github/leaderboard', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Leaderboard: top developers by computed skill score
+app.get('/api/github/leaderboard', async (req, res) => {
+  try {
+    const searchRes = await axios.get('https://api.github.com/search/users?q=followers:>10000&sort=followers&order=desc&per_page=15', { headers: githubHeaders });
+    const users = searchRes.data.items;
+    const leaderboard = [];
+    for (const user of users) {
+      try {
+        const details = await axios.get(`https://api.github.com/users/${user.login}`, { headers: githubHeaders });
+        const reposRes = await axios.get(`https://api.github.com/users/${user.login}/repos?per_page=100`, { headers: githubHeaders });
+        const repos = reposRes.data;
+        const languageCount = new Set(repos.map(r => r.language).filter(Boolean)).size;
+        const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+        const avgStars = repos.length ? totalStars / repos.length : 0;
+        const followerScore = Math.min(50, Math.floor(details.data.followers / 500));
+        const repoScore = Math.min(20, repos.length);
+        const langScore = Math.min(15, languageCount * 3);
+        const starScore = Math.min(15, avgStars / 100);
+        const totalScore = Math.round(followerScore + repoScore + langScore + starScore);
+        leaderboard.push({
+          rank: 0,
+          login: user.login,
+          avatar_url: user.avatar_url,
+          followers: details.data.followers,
+          public_repos: repos.length,
+          languages: languageCount,
+          avgStars: Math.round(avgStars),
+          score: Math.min(100, totalScore)
+        });
+      } catch (err) {
+        console.error(`Error fetching ${user.login}:`, err.message);
+      }
+    }
+    leaderboard.sort((a,b) => b.score - a.score);
+    leaderboard.forEach((user, idx) => user.rank = idx + 1);
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Leaderboard error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
