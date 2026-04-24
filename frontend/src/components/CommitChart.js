@@ -9,10 +9,7 @@ const CommitChart = ({ username }) => {
     if (!username) return;
     fetch(`${API_URL}/api/github/commit-history/${username}`)
       .then(res => res.json())
-      .then(data => {
-        setData(data);
-        setLoading(false);
-      })
+      .then(data => { setData(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [username]);
   if (loading) return <div className="card-dark p-4 animate-pulse h-64"></div>;

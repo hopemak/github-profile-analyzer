@@ -10,6 +10,8 @@ import AISummary from './components/AISummary';
 import CommitChart from './components/CommitChart';
 import Compare from './pages/Compare';
 import Trending from './pages/Trending';
+import Favorites from './pages/Favorites';
+import AuthButton from './components/auth/AuthButton';
 import { exportToPDF } from './utils/pdfExport';
 import API_URL from './config';
 
@@ -44,9 +46,12 @@ function Home() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">📊 GitHub Profile Analyzer</h1>
-          <button onClick={() => setDark(!dark)} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
-            {dark ? '☀️' : '🌙'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setDark(!dark)} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
+              {dark ? '☀️' : '🌙'}
+            </button>
+            <AuthButton />
+          </div>
         </div>
         <SearchBar onSearch={fetchUser} />
         {loading && <div className="text-center py-8">Loading...</div>}
@@ -75,10 +80,11 @@ function AppWrapper() {
     <ThemeProvider>
       <Router>
         <nav className="bg-white dark:bg-gray-800 shadow sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex gap-6 justify-center">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex gap-6 justify-center items-center">
             <Link to="/" className="hover:text-blue-600">Analyzer</Link>
             <Link to="/compare" className="hover:text-blue-600">Compare</Link>
             <Link to="/trending" className="hover:text-blue-600">Trending</Link>
+            <Link to="/favorites" className="hover:text-blue-600">⭐ Favorites</Link>
           </div>
         </nav>
         <Routes>
@@ -86,6 +92,7 @@ function AppWrapper() {
           <Route path="/compare" element={<Compare />} />
           <Route path="/compare/:userA/:userB" element={<Compare />} />
           <Route path="/trending" element={<Trending />} />
+          <Route path="/favorites" element={<Favorites />} />
         </Routes>
       </Router>
     </ThemeProvider>
